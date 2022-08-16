@@ -1,0 +1,13 @@
+{
+    "ADMIN" : "input",
+    "ALM" : "input alm",
+    "CDR" : "input cdr",
+    "EDT" : "input edt",
+    "STS" : "input sts",
+    "telephone number" : "input tel",
+    "Username" : "auth",
+    "logged off" : "quit",
+    "Connected" : "connected",
+    "busy" : "busy",
+    "not be completed" : "fail call"
+}
