@@ -12,9 +12,15 @@ namespace HARRIS_SET_TIME
             user = config.user;
             password = config.password;
             number = config.number;
+
+            if (config.baudrate != null)
+                baudrate = config.baudrate;
+            else
+                baudrate = 0;
         }
         public string user { get; set; }
         public string password { get; set; }
         public string number { get; set; }
+        public int baudrate { get; set; }
     }
 }
