@@ -20,24 +20,27 @@ namespace HARRIS_SET_TIME
         {
             DcaInfo = dcaObject;
             _token = token;
-
-            task = new Task<bool>(Run, token);
         }
 
         public bool Run()
         {
-            _token.Register(() =>
-            {
+            Console.WriteLine("\n - НОМЕР: " + DcaInfo.number + "\n");
 
-            });
+            Program.port.SetBaudrate(DcaInfo.baudrate != 0 ? DcaInfo.baudrate : ComPort.baudrate);
+
+            _token.Register(() => { });
 
             int iteration = 0;
 
             DateTime lastUpdIteration = DateTime.Now;
+            Program.port.InputThread.LastRec = DateTime.Now;
 
-            string prevUpdate = "start";
+            string prevUpdate = "";
 
-            while (true)
+            bool were_updates = false;
+            bool quit = false;
+
+            while (!Status && !quit)
             {
                 foreach (string update in Program.port.GetUpdates())
                 {
@@ -47,15 +50,16 @@ namespace HARRIS_SET_TIME
                             Encoding.ASCII.GetBytes($"set time {DateTime.Now.ToString("HH:mm:ss")}")
                             .Concat(ComPort.GetBytesFromHex("0D")).ToArray()
                         );
+                        Program.port.Send(ComPort.GetBytesFromHex("65 78 69 74 0D"));
                         Status = true;
                     }
                     else if (update == "input tel")
                     {
                         Program.port.Send(Encoding.ASCII.GetBytes(DcaInfo.number));
                     }
-                    else if (update == "busy" || passed_time_now(Program.port.InputThread.LastRec, 15.0))
+                    else if (update == "busy" || update == "quit" || update == "fail call" || passed_time_now(Program.port.InputThread.LastRec, 15.0))
                     {
-                        Status = false;
+                        quit = true;
                         break;
                     }
                     else if (update == "auth")
@@ -77,14 +81,9 @@ namespace HARRIS_SET_TIME
                     }
                     else
                     {
-                        if (iteration <= 2)
-                        {
+                        if (!were_updates && (iteration == 0 || iteration % 4 == 0))
+                        { 
                             Program.port.Send(ComPort.GetBytesFromHex("0D"));
-                        }
-                        else
-                        {
-                            Status = false;
-                            break;
                         }
                     }
 
@@ -102,11 +101,13 @@ namespace HARRIS_SET_TIME
                         lastUpdIteration = DateTime.Now;
                     }
 
-                    prevUpdate = update;
-                }
+                    if (update != "")
+                        were_updates = true;
 
-                if (!Status)
-                    break;
+                    prevUpdate = update;
+
+                    Thread.Sleep(100);
+                }
             }
 
             Program.port.SendBreak();
@@ -116,6 +117,7 @@ namespace HARRIS_SET_TIME
 
         public bool StartAndWaitResult()
         {
+            task = new Task<bool>(Run, _token);
             task.Start();
             return task.Result;
         }

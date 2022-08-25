@@ -25,10 +25,14 @@ namespace HARRIS_SET_TIME
         public Dictionary<string, string> Events =
             new Dictionary<string, string>();
 
+        public static int baudrate;
+
         public ComPort(dynamic config)
         {
             Port.PortName = config.name;
             Port.BaudRate = config.baudrate;
+
+            baudrate = config.baudrate;
 
             InputThread = new ReadingInputDataThread(Port);
 
@@ -69,12 +73,11 @@ namespace HARRIS_SET_TIME
 
                     Thread.Sleep(5000);
                 }
+                finally { Thread.Sleep(50); }
             }
 
-            if (InputThread.IsRunning())
+            if (!InputThread.IsRunning())
                 InputThread.StartListening();
-
-            Console.WriteLine(Port.IsOpen);
         }
 
         public bool CDHolding()
@@ -94,6 +97,10 @@ namespace HARRIS_SET_TIME
             Port.Close();
         }
 
+        public void SetBaudrate(int speed) {
+            Port.BaudRate = speed;
+        }
+
         public void Send(byte[] message)
         {
             while (!ready_to_send(LastSend)) ;
@@ -109,12 +116,9 @@ namespace HARRIS_SET_TIME
 
         public void SendBreak()
         {
-            for (int i = 0; i < 2; ++i)
-            {
-                Port.BreakState = true;
-                Thread.Sleep(500);
-                Port.BreakState = false;
-            }
+            Port.BreakState = true;
+            Thread.Sleep(500);
+            Port.BreakState = false;
             Thread.Sleep(1000);
         }
 
@@ -199,6 +203,7 @@ namespace HARRIS_SET_TIME
                             break;
                         }
                         catch (System.IO.IOException) { }
+                        finally { Thread.Sleep(10); }
                     }
                     foreach (string line in read_text)
                     {
@@ -215,17 +220,14 @@ namespace HARRIS_SET_TIME
                         {
                             if (data.Contains(kvp.Key))
                             {
+                                //Console.WriteLine("\n"+kvp.Value);
                                 yield return kvp.Value;
-
-                                //if (kvp.Value == "quit")
-                                //    quit = true;
                             }
                         }
                     }
                 }
                 if (InputThread.StopThread)
                     break;
-
                 yield return "";
             }
         }
@@ -234,7 +236,7 @@ namespace HARRIS_SET_TIME
     public class ReadingInputDataThread {
 
         private readonly Thread _thread;
-        private readonly SerialPort _serialPort;
+        private SerialPort _serialPort;
 
         public DateTime LastRec;
 
@@ -248,6 +250,11 @@ namespace HARRIS_SET_TIME
 
         public void StartListening()
         {
+            if (File.Exists(Program.bufferPath))
+                File.Delete(Program.bufferPath);
+
+            File.Create(Program.bufferPath);
+            
             _thread.Start();
         }
 
@@ -259,6 +266,10 @@ namespace HARRIS_SET_TIME
 
         public void ListeningPort()
         {
+            LastRec = DateTime.Now;
+
+            bool were_data = false;
+
             while (!StopThread)
             {
                 try
@@ -272,11 +283,13 @@ namespace HARRIS_SET_TIME
                         {
                             LastRec = DateTime.Now;
                             File.AppendAllText(Program.bufferPath, indata);
+                            were_data = true;
                         }
                     }
                 }
                 catch (System.IO.IOException) { }
                 catch (System.NullReferenceException) { }
+                finally { if (were_data) { Thread.Sleep(50); } }
             }
         }
 

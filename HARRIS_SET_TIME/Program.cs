@@ -44,6 +44,8 @@ namespace HARRIS_SET_TIME
                 Dca dcaItem = new Dca(dcaInfo);
                 tasks.Add(new HarrisTask(dcaItem, _cancelTokenSource.Token));
             }
+
+            Console.ForegroundColor = ConsoleColor.White;
         }
 
         public static void RunTasks()
@@ -55,7 +57,7 @@ namespace HARRIS_SET_TIME
 
             List<HarrisTask> queue = new List<HarrisTask> { };
 
-            foreach (HarrisTask task in tasks) 
+            foreach (HarrisTask task in tasks)
             {
                 if (task.StartAndWaitResult()) {
                     completedTasks++;
@@ -64,7 +66,7 @@ namespace HARRIS_SET_TIME
                 }
             }
 
-            foreach (HarrisTask task in queue)
+            foreach (HarrisTask task in queue.ToArray())
             {
                 if (task.StartAndWaitResult()) {
                     completedTasks++;
@@ -74,19 +76,37 @@ namespace HARRIS_SET_TIME
 
             Program.port.SetDtr(false);
 
+            Console.WriteLine();
+
             if (queue.ToArray().Length == 0) 
             {
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"\n ВСЕ ЗАДАЧИ ВЫПОЛНЕНЫ УСПЕШНО");
             } 
             else 
             {
+                if (completedTasks > 0)
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                else
+                    Console.ForegroundColor = ConsoleColor.Red;
+
                 Console.WriteLine("\n - У СЛЕДУЮЩИХ НОМЕРОВ НЕ УДАЛОСЬ УСТАНОВИТЬ ВРЕМЯ: ");
                 
                 foreach (HarrisTask task in queue)
                     Console.WriteLine($"   - {task.DcaInfo.number}");
-                
-                Console.WriteLine($"\n ЗАДАЧА ВЫПОЛНЕНА НА {Math.Round(completedTasks / tasks.Count * 100.0)}% ");
+
+                if (completedTasks > 0)
+                    Console.WriteLine($"\n ЗАДАЧИ ВЫПОЛНЕНЫ НА {Math.Round((completedTasks * 1.0) / tasks.Count * 100.0, 3)}% ");
+                else
+                {
+                    Console.WriteLine("\n НИ ОДНА ЗАДАЧА НЕ ВЫПОЛНЕНА :(");
+                }
             }
+
+            Console.WriteLine();
+            Console.ResetColor();
+
+            Program.port.Close();
         }
     }
 }
